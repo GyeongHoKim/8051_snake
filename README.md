@@ -1,2 +1,4 @@
-# 8051_snake
-Hanyang Univ microprocessor final project
+# 8051 스네이크 게임
+
+![snake](./asset/algorithm)
+
