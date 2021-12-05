@@ -15,7 +15,7 @@ Making Arcade Console of [snake_game](https://g.co/kgs/fRcm4t) with Intel 8051
 
 ### About Intel MCS-51
 
-![intel_mcs_51](./asset/intel_mcs-51)
+![intel_mcs_51](./asset/intel_mcs-51.jpg)
 
 A single chip microcontroller (MCU) series developed by Intel for use in embedded systems.
 
