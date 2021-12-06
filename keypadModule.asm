@@ -1,91 +1,87 @@
-;keypad
-
+;After FINDKEYCODE, the index of keypad is stored at KEY(30H)
 ;up이 17번째, left가 21번째, down이 22번째, right가 23번째 index값임
+;key에 0,1,2,3 저장(순서대로 up, right, down, left)
 
-FINDKEYCODE:
-	PUSH	REG_0
-    PUSH    REG_1
-    PUSH    REG_2
+DATAOUT     EQU	0FFF0H
+DATAIN      EQU	0FFF1H
+COLRED		EQU	0FFC6H
+ROW		    EQU	0FFC7H
+KEY			EQU 30H
 
-INITIAL:
-	MOV	    R1, #00H
-	MOV	    A, #11101111B
-	SETB	C
+SAMPLEKEY:
+			PUSH	PSW
+			SETB	PSW.4
+			SETB	PSW.3
+			CALL	KEYINITIAL
+			JB		ACC.3, KEYINITIAL; 4가 나오면 다시 한 번 검출
+			CALL	BOUNCE
+
+BOUNCE:
+			CALL	KEYDELAY
+RELOAD		MOV		A, #0
+			CALL	SUBKEY
+			CPL		A
+			JNZ		RELOAD
+			CALL	KEYDELAY
+			RET
+
+KEYDELAY:
+			MOV		R0, #020H
+REPEAT:
+			MOV		R1, #0FFH
+			DJNZ	R1, $
+			DJNZ	R0, REPEAT
+			RET
+
+KEYINITIAL:
+			MOV	    R1, #00H
+			MOV	    A, #11101111B
+			SETB	C
 
 COLSCAN:
-	MOV	    R0, A
-	INC	    R1
-	CALL	SUBKEY
+			MOV	    R0, A
+			INC	    R1
+			CALL	SUBKEY
 	
-	CJNE	A, #0FFH, RSCAN
-	MOV	    A, R0
-	SETB	C
-	RRC	    A
-	JNC	    INITIAL
-	JMP	    COLSCAN
+			CJNE	A, #0FFH, RSCAN
+			MOV	    A, R0
+			SETB	C
+			RRC	    A
+			JNC	    INITIAL
+			JMP	    COLSCAN
 
 RSCAN:	
-    MOV	R2, #00H
+    		MOV	R2, #00H
 ROWSCAN:
-	RRC	A
-	JNC	MATRIX
-	INC	R2
-	JMP	ROWSCAN
+			RRC	A
+			JNC	MATRIX
+			INC	R2
+			JMP	ROWSCAN
 
 MATRIX:
-    MOV	    A, R2
-	MOV	    B, #05H
-	MUL	    AB
-	ADD	    A, R1
-	POP	    REG_0
-	POP	    REG_1
-	POP	    REG_2
-	RET
+    		MOV	    A, R2
+			MOV	    B, #05H
+			MUL	    AB
+			ADD	    A, R1
+UP:			CJNE	A, #10H, LEFT
+			MOV		A, #00H
+			JMP		KEYEND
+LEFT:		CJNE	A, #15H, DOWN
+			MOV		A, #03H
+			JMP		KEYEND
+DOWN:		CJNE	A, #16H, RIGHT
+			MOV		A, #02H
+			JMP		KEYEND
+RIGHT:		CJNE	A, #17H
+			MOV		A, #01H
+			JMP		KEYEND
+WRONG:		MOV		A, #04H
+KEYEND:		RET
+
 
 SUBKEY:
-    MOV	    DPTR, #DATAOUT
-	MOVX	@DPTR, A
-	MOV	    DPTR, #DATAIN
-	MOVX	A, @DPTR
-	RET
-
-RWKEY	EQU	10H
-COMMA	EQU	11H
-PERIOD	EQU	12H
-GO	EQU	13H
-REG	EQU	14H
-CD	EQU	15H
-INCR	EQU	16H
-ST	EQU	17H
-RST	EQU	18H
-
-INDEX:
-    MOVC	A,@A+PC
-	RET
-
-KEYBASE:
-	DB ST
-	DB INCR
-	DB CD
-	DB REG
-	DB GO
-	DB 0CH
-	DB 0DH
-	DB 0EH
-	DB 0FH
-	DB COMMA
-	DB 08H
-	DB 09H
-	DB 0AH
-	DB 0BH
-	DB PERIOD
-	DB 04H
-	DB 05H
-	DB 06H
-	DB 07H
-	DB RWKEY
-	DB 00H
-	DB 01H
-	DB 02H
-	DB 03H
-	END
+    		MOV	    DPTR, #DATAOUT
+			MOVX	@DPTR, A
+			MOV	    DPTR, #DATAIN
+			MOVX	A, @DPTR
+			RET
