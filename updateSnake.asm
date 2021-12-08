@@ -55,10 +55,11 @@ LEFT:
     CALL    ateItself
     JMP     COMPLETE
 COMPLETE:
+    POP     PSW
     RET
 BUMP:
     MOV     GAME_OVER, #00H
-    COMPLETE
+    JMP     COMPLETE
 ateItself:
     MOV     A, @R0
     MOV     R3, A
