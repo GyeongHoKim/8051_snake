@@ -6,15 +6,22 @@ DATAOUT     EQU	0FFF0H
 DATAIN      EQU	0FFF1H
 COLRED		EQU	0FFC6H
 ROW		    EQU	0FFC7H
-KEY			EQU 30H
+SNAKE_DIR	EQU 31H
 
 SAMPLEKEY:
 			PUSH	PSW
 			SETB	PSW.4
 			SETB	PSW.3
 			CALL	KEYINITIAL
-			JB		ACC.3, KEYINITIAL; 4가 나오면 다시 한 번 검출
+			JB		ACC.3, PASS; 4는 잘못된 키를 눌렀거나 키 입력이 없을 때
+			MOV		SNAKE_DIR, A
 			CALL	BOUNCE
+			POP		PSW
+			RET
+
+PASS:
+			POP		PSW
+			RET
 
 BOUNCE:
 			CALL	KEYDELAY
@@ -47,8 +54,12 @@ COLSCAN:
 			MOV	    A, R0
 			SETB	C
 			RRC	    A
-			JNC	    INITIAL
+			JNC	    NO_INPUT
 			JMP	    COLSCAN
+
+NO_INPUT:
+			MOV		A, #4
+			RET
 
 RSCAN:	
     		MOV	R2, #00H
