@@ -14,14 +14,16 @@ INIT:	MOV	R2, #00H	;GREEN DOT OFF
 	MOV	R3, #00H
 	CALL	DOTCOLR
 
-	MOV	GAME_OVER, #FFH
+	MOV	R0, #GAME_OVER
+	MOV	@R0, #0FH
 	MOV	R0, #SNAKE_LEN	;INIT LENGTH -> 3
 	MOV	@R0, #3
-	MOV	SNAKE_DIR, #2	;INIT DIRECTION -> 2
+	MOV	SNAKE_DIR, #1	;INIT DIRECTION -> 1
+	MOV	R7, #9FH
 
-	MOV	32H, #00H	;0000/0000B, TAIL
-	MOV	33H, #01H	;0000/0001B
-	MOV	34H, #02H	;0000/0010B, HEAD
+	MOV	32H, #40H	;0000/0000B, TAIL
+	MOV	33H, #41H	;0000/0001B
+	MOV	34H, #42H	;0000/0010B, HEAD
 
 	MOV	TMOD, #02H	;TIMER SET, MODE 02
 	MOV	TH0, #00H	;INITIAL VALUE
@@ -29,23 +31,28 @@ INIT:	MOV	R2, #00H	;GREEN DOT OFF
 	SETB	TCON.TR0	;START
 
 	CALL	SET_EGG
+	CALL	PRELOOP
 
 LOOP:
-	CJNE	GAME_OVER, #FFH, INIT
 	CALL	DISPLAY
-	CALL	updateSnake
+	MOV	A, R7
+	JZ	PRELOOP
+	DJNZ	R7, LOOP
+PRELOOP:
+	MOV	R7, #09FH
+	MOV	A, GAME_OVER
+	JZ 	INIT
 	JMP	LOOP
-
 ;---DISPLAY-----------------------------------
 DISPLAY:
 	MOV 	R0, #SNAKE_TAIL	;SNAKE DISP
-	MOV	R1, SNAKE_LEN
+	MOV	R4, SNAKE_LEN
 	CLR	C
 
 DISP:	MOV 	R2, #00000001B
 	MOV	R3, #00000001B
 
-	MOV 	A, @R0
+	MOV	A, @R0
 	ANL 	A, #11110000B
 	SWAP	A
 	JZ	DISP_L2
@@ -71,7 +78,7 @@ DISP_L4:
 	INC	R0
 	CALL 	DOTCOLG
 	CALL	DELAY		;---------MUST BE ERASED
-	DJNZ	R1, DISP
+	DJNZ	R4, DISP
 	
 	MOV 	R2, #00000000B
 	MOV	R3, #00000000B
@@ -113,7 +120,7 @@ DISP_EGG4:
 	MOV	R3, #00000000B
 	CALL	DOTCOLR
 
-	CALL	SET_EGG		;FOR TEST, MUST BE ERASED
+;	CALL	SET_EGG		;FOR TEST, MUST BE ERASED
 
 	RET
 	
@@ -157,76 +164,6 @@ DELAY1: MOV 	R2,#0FAH
 DELAY2: DJNZ 	R2,DELAY2
       	DJNZ 	R3,DELAY1
 RET
-
-updateSnake:
-    PUSH    PSW
-    SETB    PSW.3
-    CLR     PSW.4
-
-    MOV     R0, #SNAKE_TAIL
-    ADD     R0, SNAKE_LEN
-    DEC     R0; 이 안에 머리의 주소가 담겨있음
-
-    MOV     R1, #SNAKE_TAIL
-arrayLoop:
-    MOV     A, R1
-    ADD     A, #01H
-    MOV     R2, A; CURRENT ADDR IS ON R1, NEXT ADDR IS ON R2
-    
-    MOV     A, @R2
-    MOV     @R1, A
-    INC     R1
-    CJNE    R1, R0, arrayLoop
-
-    MOV     A, @R0
-UP: 
-    CJNE    SNAKE_DIR, #00H, RIGHT
-    ADD     A, #10H; UP
-    MOV     @R0, A
-    ANL     A, #80H
-    JNZ     BUMP;벽쿵
-    CALL    ateItself
-    JMP     COMPLETE
-RIGHT:
-    CJNE    SNAKE_DIR, #01H, DOWN
-    ADD     A, #01H
-    MOV     @R0, A
-    ANL     A, #08H
-    JNZ     BUMP;벽쿵
-    CALL    ateItself
-    JMP     COMPLETE
-DOWN:
-    CJNE    SNAKE_DIR, #02H, LEFT
-    SUBB    A, #10H
-    MOV     @R0, A
-    JC      BUMP; 벽쿵
-    CALL    ateItself
-    JMP     COMPLETE
-LEFT:
-    CJNE    SNAKE_DIR, #03H, NAN
-    SUBB    A, #01H
-    MOV     @R0, A
-    JC      BUMP; 벽쿵
-    CALL    ateItself
-    JMP     COMPLETE
-COMPLETE:
-    POP     PSW
-    RET
-BUMP:
-    MOV     GAME_OVER, #00H
-    JMP     COMPLETE
-ateItself:
-    MOV     A, @R0
-    MOV     R3, A
-    MOV     R1, #SNAKE_TAIL
-ateCheckLoop:
-    MOV     A, @R1
-    SUBB    A, R3
-    JNZ     BUMP; ATE ITSELF
-    CJNE    R1, R0, ateCheckLoop
-    RET
-
-
 
 	ORG	9F0BH		;TIMER INTERRUPT
 	JMP	TIME_SET
