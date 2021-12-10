@@ -1,22 +1,172 @@
+SNAKE_LEN	EQU	30H
+SNAKE_DIR	EQU	31H	;0 1 2 3 / UP R DOWN L
+SNAKE_TAIL	EQU	32H
+GAME_OVER   EQU 2BH; GAME OVER IF ZERO
 
-DATAOUT     EQU	0FFF0H
-DATAIN      EQU	0FFF1H
+COLGREEN	EQU	0FFC5H	;DISPLAY INIT
 COLRED		EQU	0FFC6H
-ROW		    EQU	0FFC7H
-KEY         EQU 30H
+ROW		EQU	0FFC7H
 
-MAIN:
-    CALL    INIT
+	ORG	8000H
 
-MAINLOOP:
-    CALL    NEXTDIR
-    CALL    DISPLAY
-    CALL    EGGLOC
-    CALL    UPDATEHEAD
-    CALL    EATEGG
-    CALL    UPDATESNAKE
+INIT:	MOV	R2, #00H	;GREEN DOT OFF
+	MOV	R0, #00H
+	CALL	DOTCOLG
 
-INIT:
+    MOV GAME_OVER, #FFH
+	MOV	R0, #SNAKE_LEN	;INIT LENGTH -> 3
+	MOV	@R0, #3
+	MOV	SNAKE_DIR, #2	;INIT DIRECTION -> 2
+
+	MOV	32H, #00H	;0000/0000B, TAIL
+	MOV	33H, #01H	;0000/0001B
+	MOV	34H, #02H	;0000/0010B, HEAD
+
+LOOP:
+    CJNE    GAME_OVER, #FFH, INIT
+    CALL	DISPLAY
+	CALL	updateSnake
+	JMP	LOOP
+
+;--------------------------------------
+DISPLAY:
+	MOV 	R0, #SNAKE_TAIL
+	MOV	R1, SNAKE_LEN
+	CLR	C
+
+DISP:	MOV 	R2, #00000001B
+	MOV	R3, #00000001B
+
+	MOV 	A, @R0
+	ANL 	A, #11110000B
+	SWAP	A
+	JZ	DISP_L2
+DISP_L1:
+	MOV	B, A		;B->TEMP
+	MOV	A, R2
+	RL	A
+	MOV	R2, A
+	MOV	A, B
+	DJNZ	A, DISP_L1
+DISP_L2:
+	MOV	A, @R0
+	ANL	A, #00001111B
+	JZ	DISP_L4
+DISP_L3:
+	MOV	B, A		;B->TEMP
+	MOV	A, R3
+	RL	A
+	MOV	R3, A
+	MOV	A, B
+	DJNZ	A, DISP_L3
+DISP_L4:
+	INC	R0
+	CALL 	DOTCOLR
+	DJNZ	R1, DISP
+	RET
+	
+DOTCOLG:			;GREEN, EGG
+	MOV	DPTR, #COLGREEN
+	MOV	A, R2
+	MOVX	@DPTR, A
+	
+	MOV	DPTR, #ROW
+	MOV	A, R0
+	MOVX	@DPTR, A
+	RET
+
+DOTCOLR:			;RED, SNAKE
+	MOV	DPTR, #COLRED
+	MOV	A, R2
+	MOVX	@DPTR, A
+	
+	MOV	DPTR, #ROW
+	MOV	A, R3
+	MOVX	@DPTR, A
+	RET
+
+DELAY:	MOV	R7, #03H
+DELAY1:	MOV	R6, #0FFH
+DELAY2:	MOV	R5, #0FFH
+DELAY3:	DJNZ	R5, DELAY3
+	DJNZ	R6, DELAY2
+	DJNZ	R7, DELAY1
+RET
+
+
+updateSnake:
+    PUSH    PSW
+    SETB    PSW.3
+    CLR     PSW.4
+
+    MOV     R0, #SNAKE_TAIL
+    ADD     R0, SNAKE_LEN
+    DEC     R0; 이 안에 머리의 주소가 담겨있음
+
+    MOV     R1, #SNAKE_TAIL
+arrayLoop:
+    MOV     A, R1
+    ADD     A, #01H
+    MOV     R2, A; CURRENT ADDR IS ON R1, NEXT ADDR IS ON R2
     
-NEXTDIR:
-    CALL    FINDKEYCODE
+    MOV     A, @R2
+    MOV     @R1, A
+    INC     R1
+    CJNE    R1, R0, arrayLoop
+
+    MOV     A, @R0
+UP: 
+    CJNE    SNAKE_DIR, #00H, RIGHT
+    ADD     A, #10H; UP
+    MOV     @R0, A
+    ANL     A, #80H
+    JNZ     BUMP;벽쿵
+    CALL    ateItself
+    JMP     COMPLETE
+RIGHT:
+    CJNE    SNAKE_DIR, #01H, DOWN
+    ADD     A, #01H
+    MOV     @R0, A
+    ANL     A, #08H
+    JNZ     BUMP;벽쿵
+    CALL    ateItself
+    JMP     COMPLETE
+DOWN:
+    CJNE    SNAKE_DIR, #02H, LEFT
+    SUBB    A, #10H
+    MOV     @R0, A
+    JC      BUMP; 벽쿵
+    CALL    ateItself
+    JMP     COMPLETE
+LEFT:
+    CJNE    SNAKE_DIR, #03H, NAN
+    SUBB    A, #01H
+    MOV     @R0, A
+    JC      BUMP; 벽쿵
+    CALL    ateItself
+    JMP     COMPLETE
+COMPLETE:
+    POP     PSW
+    RET
+BUMP:
+    MOV     GAME_OVER, #00H
+    JMP     COMPLETE
+ateItself:
+    MOV     A, @R0
+    MOV     R3, A
+    MOV     R1, #SNAKE_TAIL
+ateCheckLoop:
+    MOV     A, @R1
+    SUBB    A, R3
+    JNZ     BUMP; ATE ITSELF
+    CJNE    R1, R0, ateCheckLoop
+    RET
+
+
+
+
+
+
+
+
+END
