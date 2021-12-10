@@ -198,7 +198,13 @@ UP:
 	MOV     @R0, A
 	JC     	BUMP;벽쿵
 	;CALL    ateItself
-	JMP     COMPLETE
+
+	MOV	A, EGG_LOC
+	SUBB	A, @R0
+	JNZ	COMPLETE
+
+	CALL	INCHEAD
+	JMP	UP
 RIGHT:
 	MOV	A, SNAKE_DIR
 	CJNE    A, #01H, DOWN
@@ -208,7 +214,13 @@ RIGHT:
     	ANL     A, #08H
     	JNZ     BUMP;벽쿵
     	;CALL    ateItself
-    	JMP     COMPLETE
+
+	MOV	A, EGG_LOC
+	SUBB	A, @R0
+	JNZ	COMPLETE
+
+	CALL	INCHEAD
+	JMP	RIGHT
 DOWN:
 	MOV	A, SNAKE_DIR
 	CJNE    A, #02H, LEFT
@@ -218,16 +230,28 @@ DOWN:
 	ANL	A, #80H
     	JNZ	BUMP; 벽쿵
     	;CALL    ateItself
-    	JMP     COMPLETE
+
+	MOV	A, EGG_LOC
+	SUBB	A, @R0
+	JNZ	COMPLETE
+
+	CALL	INCHEAD
+	JMP	DOWN
 LEFT:
 	MOV	A, @R0
 	SWAP	A
     	SUBB    A, #10H
 	SWAP	A
     	MOV     @R0, A
-    	JC	BUMP	; 벽쿵
+    	JC	BUMP; 벽쿵
     	;CALL    ateItself
-	JMP     COMPLETE
+
+	MOV	A, EGG_LOC
+	SUBB	A, @R0
+	JNZ	COMPLETE
+
+	CALL	INCHEAD
+	JMP	LEFT
 COMPLETE:
     	RET
 BUMP:
@@ -248,6 +272,17 @@ ateCheckLoop:
 	JNZ	ateCheckLoop
 
     	RET
+
+INCHEAD:
+	;이 부분에 EGG_LOC을 난수설정하는 코드가 있어야 함
+	MOV	A, SNAKE_LEN
+	INC	A
+	MOV	SNAKE_LEN, A
+
+	MOV	A, @R0
+	INC	R0
+	MOV	@R0, A
+	RET
 
 SAMPLEKEY:
 	CALL	KEYINITIAL
