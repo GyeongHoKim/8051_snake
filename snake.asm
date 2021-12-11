@@ -274,7 +274,7 @@ ateCheckLoop:
     	RET
 
 INCHEAD:
-	;이 부분에 EGG_LOC을 난수설정하는 코드가 있어야 함
+	CALL	SET_EGG
 	MOV	A, SNAKE_LEN
 	INC	A
 	MOV	SNAKE_LEN, A
