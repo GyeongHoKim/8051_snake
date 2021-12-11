@@ -12,6 +12,7 @@ Making Arcade Console of [snake_game](https://g.co/kgs/fRcm4t) with Intel 8051
 * Intel MCS-51
 * 8 * 8 LED dot matrix
 * 5 * 5 Keypad
+* 7-segment Array
 
 ### About Intel MCS-51
 
