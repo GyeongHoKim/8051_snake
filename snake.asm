@@ -9,13 +9,19 @@ COLRED		EQU	0FFC6H
 ROW		EQU	0FFC7H
 DATAOUT     	EQU	0FFF0H
 DATAIN      	EQU	0FFF1H
+DLED	EQU	0FFC1H;7-SEGMENT RIGHT
+ALED0	EQU	0FFC2H;7-SEGMENT MIDDLE
+ALED1	EQU	0FFC3H;7-SEGMENT LEFT
 
 	ORG	8000H
 
-INIT:	MOV	R2, #00H	;GREEN DOT OFF
+INIT:
+; dot matrix initialization
+	MOV	R2, #00H	;GREEN DOT OFF
 	MOV	R3, #00H
 	CALL	DOTCOLR
 
+; game over, snake length, snake direction initialization
 	MOV	R0, #GAME_OVER
 	MOV	@R0, #0FH
 	MOV	R0, #SNAKE_LEN	;INIT LENGTH -> 3
@@ -23,10 +29,25 @@ INIT:	MOV	R2, #00H	;GREEN DOT OFF
 	MOV	SNAKE_DIR, #0	;INIT DIRECTION -> 1
 	MOV	R7, #9FH
 
+; snake position array initialization
 	MOV	32H, #43H	;0100/0011B, TAIL
 	MOV	33H, #44H	;0100/0100B
 	MOV	34H, #45H	;0100/0101B, HEAD
 
+; 7-segment initialization
+	MOV	DPTR, #DLED
+	MOV	A, #00H
+	MOVX	@DPTR, A
+
+	MOV	DPTR, #ALED0
+	MOV	A, #00H
+	MOVX	@DPTR, A
+
+	MOV	DPTR, #ALED1
+	MOV	A, #00H
+	MOVX	@DPTR, A
+
+; timer initialization
 	MOV	TMOD, #02H	;TIMER SET, MODE 02
 	MOV	TH0, #00H	;INITIAL VALUE
 	MOV	TL0, #00H
@@ -36,9 +57,12 @@ INIT:	MOV	R2, #00H	;GREEN DOT OFF
 	CALL	PRELOOP
 
 LOOP:
+; check game over
 	MOV	A, GAME_OVER
 	JZ	INIT
+; check keypad and store direction
 	CALL	SAMPLEKEY
+; display snake and egg on dot matrix
 	CALL	DISPLAY
 	MOV	A, R7
 	JZ	PRELOOP
@@ -81,7 +105,7 @@ DISP_L3:
 DISP_L4:
 	INC	R0
 	CALL 	DOTCOLG
-	CALL	DELAY		;---------MUST BE ERASED
+	CALL	DELAY		
 	DJNZ	R4, DISP
 	
 	MOV 	R2, #00000000B
@@ -118,23 +142,32 @@ DISP_EGG3:
 	DJNZ	A, DISP_EGG3
 DISP_EGG4:
 	CALL	DOTCOLR
-	CALL	DELAY		;-------------MUST BE ERASED
+	CALL	DELAY		
 
 	MOV 	R2, #00000000B
 	MOV	R3, #00000000B
 	CALL	DOTCOLR
-
-;	CALL	SET_EGG		;FOR TEST, MUST BE ERASED
-
 	RET
 	
 ;---SET_EGG-----------------------------------
+;네 꼭짓점에 egg가 스폰될 경우, 무조건 죽어야 하므로 다시 set
 SET_EGG:
 	MOV	A, TL0
 	ANL	A, #01110111B
-
-	MOV	R0, #EGG_LOC
-	MOV	@R0, A					
+SET_EGG1:
+	JNZ	SET_EGG2
+	JMP	SET_EGG
+SET_EGG2:
+	CJNE	A, #01110111B, SET_EGG3
+	JMP	SET_EGG
+SET_EGG3:
+	CJNE	A, #01110000B, SET_EGG4
+	JMP	SET_EGG
+SET_EGG4:
+	CJNE	A, #00000111B, SET_EGG5
+	JMP	SET_EGG
+SET_EGG5:
+	MOV	EGG_LOC, A				
 	RET
 
 TIME_SET:
@@ -169,6 +202,7 @@ DELAY2: DJNZ 	R2,DELAY2
       	DJNZ 	R3,DELAY1
 RET
 
+; update elemente of snake array except the head. each element has the position of dot matrix
 updateSnake:
 	MOV     R1, #SNAKE_TAIL
 arrayLoop:
@@ -190,6 +224,7 @@ arrayLoop:
 	SUBB	A, R0
 	JNZ	arrayLoop
 
+; update the position of head
 UP:
 	MOV	A, SNAKE_DIR
 	CJNE    A, #00H, RIGHT
@@ -197,12 +232,13 @@ UP:
 	SUBB	A, #10H; UP
 	MOV     @R0, A
 	JC     	BUMP;벽쿵
-	;CALL    ateItself
 
+; check ate Egg
 	MOV	A, EGG_LOC
 	SUBB	A, @R0
 	JNZ	COMPLETE
 
+; increase snake length and update new head
 	CALL	INCHEAD
 	JMP	UP
 RIGHT:
@@ -213,12 +249,13 @@ RIGHT:
     	MOV     @R0, A
     	ANL     A, #08H
     	JNZ     BUMP;벽쿵
-    	;CALL    ateItself
 
+; check ate Egg
 	MOV	A, EGG_LOC
 	SUBB	A, @R0
 	JNZ	COMPLETE
 
+; increase snake length and update new head
 	CALL	INCHEAD
 	JMP	RIGHT
 DOWN:
@@ -229,12 +266,13 @@ DOWN:
     	MOV     @R0, A
 	ANL	A, #80H
     	JNZ	BUMP; 벽쿵
-    	;CALL    ateItself
 
+; check ate Egg
 	MOV	A, EGG_LOC
 	SUBB	A, @R0
 	JNZ	COMPLETE
 
+; increase snake length and update new head
 	CALL	INCHEAD
 	JMP	DOWN
 LEFT:
@@ -244,12 +282,13 @@ LEFT:
 	SWAP	A
     	MOV     @R0, A
     	JC	BUMP; 벽쿵
-    	;CALL    ateItself
 
+; check ate Egg
 	MOV	A, EGG_LOC
 	SUBB	A, @R0
 	JNZ	COMPLETE
 
+; increase snake length and update new head
 	CALL	INCHEAD
 	JMP	LEFT
 COMPLETE:
@@ -257,54 +296,27 @@ COMPLETE:
 BUMP:
     	MOV     GAME_OVER, #00H
     	JMP     COMPLETE
-ateItself:
-    	MOV     A, @R0
-    	MOV     R3, A
-    	MOV     R1, #SNAKE_TAIL
-ateCheckLoop:
-    	MOV     A, @R1
-    	SUBB    A, R3
-    	JZ	BUMP; ATE ITSELF
-
-	MOV	A, R1
-	SUBB	A, R0
-	INC	R1
-	JNZ	ateCheckLoop
-
-    	RET
 
 INCHEAD:
+; set random location of egg
 	CALL	SET_EGG
+; increase the length of snake
 	MOV	A, SNAKE_LEN
 	INC	A
 	MOV	SNAKE_LEN, A
+; update score on 7 segment
+	CALL	DISPLAY_SEG
 
+; update new head
 	MOV	A, @R0
 	INC	R0
 	MOV	@R0, A
 	RET
 
+; check keypad and update direction
 SAMPLEKEY:
 	CALL	KEYINITIAL
 	MOV	SNAKE_DIR, A
-	;CALL	BOUNCE
-	RET
-
-BOUNCE:
-	CALL	KEYDELAY
-RELOAD:	MOV	A, #0
-	CALL	SUBKEY
-	CPL	A
-	JNZ	RELOAD
-	CALL	KEYDELAY
-	RET
-
-KEYDELAY:
-	MOV	R0, #020H
-REPEAT:
-	MOV	R1, #0FFH
-	DJNZ	R1, $
-	DJNZ	R0, REPEAT
 	RET
 
 KEYINITIAL:
@@ -370,6 +382,20 @@ SUBKEY:
 	MOVX	A, @DPTR
 	RET
 
+; update score on 7-segment
+; dot matrix 총 개수가 64개 이므로 99점을 넘길 수 없음, 따라서 DLED만 업데이트
+DISPLAY_SEG:
+	MOV	A, SNAKE_LEN
+	SUBB	A, #03H
+; BCD
+	MOV	B, #10
+	DIV	AB
+	SWAP	A
+	ORL	A, B
+
+	MOV	DPTR, #DLED
+	MOVX	@DPTR, A
+	RET
 
 	ORG	9F0BH		;TIMER INTERRUPT
 	JMP	TIME_SET
